@@ -1,1 +1,57 @@
-https://docs.google.com/document/d/1HOhsTLNr_D5-fjDUK6eRa8uPAaRexmxBV-ZPHByISD0/edit
+Scenario
+A game company wants to offer ERC20 tokens as a currency in game as it's in game economy, called Gold. Thoese ERC20 tokens will be spent to buy ERC721 tokens which represent in game items.
+There are two ways of getting gold either putting Eth onto the contract which rewards tokens or from completing in game tasks.
+There is only one way of getting items and that is spending gold on to get them.
+The company want's scalability and modularity with the contract. It is hoped in the future that the parts of the in game economy can change but the user's items must stay the same.
+
+Contract design and requirements
+The key parts of the requirements are:
+ERC20 contract
+ERC721 Contract
+Gold must be spent to get items
+Modularity and flexibility
+
+To meet the requirements a ERC2535 diamond can be used. Because the in game economy can change but user's items must stay the same a diamond can be used so that the economy calculations can change, we can swap out the contracts but the data will stay the same
+There will need to be two diamonds one for the ERC20 contract and the other for the ERC721 contract
+
+Diamond 1 is used an ERC20 smart contract that allows a user to purchase ERC20 tokens this is the Token diamond
+Diamond 2 is used as an ERC20 smart contract that allows a user to purchase an NFT by spending ERC20 tokens that are in Diamond 1 this is the Item diamond
+On both diamonds there will be an ownership sub functions that declare the owner of the diamond
+
+Facet A will be used to house all of the token transfers and minting for both contracts since functions on the gold diamond can affect the item diamond from purchasing in game items
+Facet B will be used to hold all of the owner functions and will point to a datastore on each of the diamonds that store the owner data
+
+There will be one datastore on Diamond 1 which is the user's gold balance
+There will be one datastore on Diamond 2 which is the user's items
+
+The benifits of developing the system this way is so that if the facets are changed which will change the operations of the system, it will leave the diamonds and data inside intact
+
+Gold diamond
+In the gold diamond we will store the ERC20 contract accross different parts of the system.
+
+Diamonds work by having a mapping in the diamond. Whenever a function is called to a diamond it looks up at which facet has the function in order to use that function
+
+For example we call balanceOf for the Gold total, the contract will then match the bytecode for that function and search it's mapping for which facet to use. If for example balanceOf had a bytecode 2999d7a then the contract will look for the address of the facet that matches the bytecode in it's facet storage, then it will delegate the call to that address.
+
+Functions can be added onto the diamond using the diamond cut function. The bytecode of the function to search for is added to the facet mapping. This can also be overwritten and removed, for example, if there was a gold giveaway for an event; The diamond will map a function that gives away free gold to a new facet, after the event the facet dosen't need to be removed but the address on the mapping for that function can be cleared. This allows three different scenarios. The function can be added again and users can then access that function, a new facet could be written that has different logic or if the contract has an exploit it can be taken down quickly. This can all happen and the data store on the diamond will not be affected.
+
+There will be six main data points on the gold data store in this diamond. The three are
+Name
+Symbol
+Decimals
+Balance
+Allowance
+Offer
+Name symbol and decimals define the token. We will include this in the token data because we don't want this to change ever and want to closeley accociate the name with the data. It will cause a lot of problems if we do chnage it.
+Balance and allowance are the standard ERC20 token contract data. Offer is a special data point where user's can turn their gold back into Eth. More details will be provided later
+
+There will be one other data contract for the tokens in this diamond. This data will hold the events. We can put the events with the user's data but what this will allow us to do is, if we make a new ERC20 token as a supplementary currency then we won't have to write the events on that data contract again.
+
+The last data store on the gold diamond is the owner details. This will be covered in a later section as the Item diamond will use the exact same system for ownership.
+
+The next diamond is the item diamond
+Like the gold diamond we will have data contracts. One for the ERC721 balance, Events and ownership.
+
+Ownership
+For each of the diamonds we will have an owner for the diamond rather than each contract. This will break from the traditional ownership patterns that smart contracts have and will use three owners for each diamond. Each owner on the contract can use protected functions but the main difference will be that there will be some planned functions on the facets that will need the approval of more than one owner.
+
